@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ad Blocker Control Panel</title>
+  <style>
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: radial-gradient(circle at center, #111, #000);
+      color: #00ffcc;
+      margin: 0;
+      overflow-x: hidden;
+    }
+
+    canvas { position: fixed; top:0; left:0; z-index:0; }
+
+    body.vip { filter: hue-rotate(30deg) saturate(1.5); }
+
+    body.redmode {
+      color: #ff3b3b;
+      background: radial-gradient(circle at center, #200, #000);
+    }
+
+    body.redmode .main-title { text-shadow: 0 0 25px #ff3b3b; }
+    body.redmode .panel { box-shadow: 0 0 30px #ff3b3b; }
+    body.redmode .stat-box { box-shadow: 0 0 10px #ff3b3b; }
+    body.redmode .redbtn { box-shadow: 0 0 10px #ff3b3b; color:#ff3b3b; }
+    body.redmode .settings { color:#ff3b3b; }
+
+    .container {
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    .main-title {
+      font-size: 55px;
+      margin-bottom: 20px;
+      text-shadow: 0 0 25px #00ffcc;
+      animation: glow 2s infinite alternate;
+    }
+
+    @keyframes glow {
+      from { text-shadow: 0 0 10px #00ffcc; }
+      to { text-shadow: 0 0 30px #00ffcc; }
+    }
+
+    .panel {
+      background: rgba(20,20,20,0.9);
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 0 30px #00ffcc;
+      width: 320px;
+      backdrop-filter: blur(10px);
+    }
+
+    .toggle {
+      display:flex;
+      justify-content:space-between;
+      margin:15px 0;
+    }
+
+    .switch { position:relative; width:50px; height:25px; }
+    .switch input { display:none; }
+
+    .slider {
+      position:absolute; width:100%; height:100%;
+      background:#555; border-radius:25px; cursor:pointer;
+    }
+
+    .slider:before {
+      content:"";
+      position:absolute;
+      height:20px; width:20px;
+      left:3px; top:2.5px;
+      background:white; border-radius:50%;
+      transition:0.3s;
+    }
+
+    input:checked + .slider {
+      background:#00ffcc;
+      box-shadow:0 0 10px #00ffcc;
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(25px);
+    }
+
+    .status { text-align:center; margin-top:10px; color:#aaa; }
+
+    .stats {
+      margin-top:20px;
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
+
+    .stat-box {
+      background:#111;
+      padding:10px;
+      border-radius:10px;
+      text-align:center;
+      box-shadow:0 0 10px #00ffcc;
+    }
+
+    .stat-number { font-size:20px; font-weight:bold; }
+
+    .popup {
+      position:fixed;
+      background:#222;
+      padding:15px;
+      border-radius:10px;
+      box-shadow:0 0 20px red;
+      z-index:999;
+      cursor:pointer;
+    }
+
+    .redbtn {
+      position:fixed;
+      top:10px;
+      right:10px;
+      z-index:10;
+      padding:10px 14px;
+      border:none;
+      border-radius:10px;
+      cursor:pointer;
+      background:#111;
+      color:#00ffcc;
+      box-shadow:0 0 10px #00ffcc;
+    }
+
+    .evilbtn{
+      position:fixed;
+      top:55px;
+      right:10px;
+      z-index:10;
+      padding:10px 14px;
+      border:none;
+      border-radius:10px;
+      cursor:pointer;
+      background:#220000;
+      color:#ff3b3b;
+      box-shadow:0 0 15px #ff3b3b;
+      font-weight:bold;
+    }
+
+    .settings {
+      position:fixed;
+      top:10px;
+      right:160px;
+      z-index:10;
+      font-size:22px;
+      cursor:pointer;
+    }
+
+    .modal {
+      position:fixed;
+      top:50%; left:50%;
+      transform:translate(-50%,-50%);
+      background:#111;
+      padding:25px;
+      border-radius:15px;
+      box-shadow:0 0 30px #00ffcc;
+      width:320px;
+      display:none;
+      z-index:9999;
+    }
+
+    .close {
+      margin-top:10px;
+      padding:8px;
+      background:#00ffcc;
+      border:none;
+      cursor:pointer;
+      border-radius:8px;
+    }
+
+    body.shake1 { animation: shake1 0.25s; }
+    body.shake2 { animation: shake2 0.2s; }
+    body.shake3 { animation: shake3 0.15s; }
+
+    @keyframes shake1 {
+      0%{transform:translate(0,0)}25%{transform:translate(-4px,2px)}50%{transform:translate(4px,-2px)}75%{transform:translate(-4px,-2px)}100%{transform:translate(0,0)}
+    }
+    @keyframes shake2 {
+      0%{transform:translate(0,0)}25%{transform:translate(-8px,4px)}50%{transform:translate(8px,-4px)}75%{transform:translate(-8px,-4px)}100%{transform:translate(0,0)}
+    }
+    @keyframes shake3 {
+      0%{transform:translate(0,0)}25%{transform:translate(-12px,6px)}50%{transform:translate(12px,-6px)}75%{transform:translate(-12px,-6px)}100%{transform:translate(0,0)}
+    }
+
+    body.flash {
+      animation: flashBg 0.15s infinite;
+    }
+
+    @keyframes flashBg {
+      0% { filter: brightness(1) contrast(1); }
+      50% { filter: brightness(2) contrast(1.5); }
+      100% { filter: brightness(1) contrast(1); }
+    }
+
+    /* NO ESCAPE OVERLAY */
+    .noescape{
+      position:fixed;
+      top:0;
+      left:0;
+      width:100%;
+      height:100%;
+      background:rgba(0,0,0,0.85);
+      display:none;
+      z-index:99999;
+      justify-content:center;
+      align-items:center;
+      text-align:center;
+      color:#ff3b3b;
+      font-size:40px;
+      font-weight:bold;
+      text-shadow:0 0 20px #ff3b3b;
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+
+<div class="noescape" id="noescape">
+  🚫 NO ESCAPE MODE ACTIVE 🚫
+</div>
+
+<div class="settings" onclick="openSettings()">⚙️</div>
+<button class="redbtn" onclick="toggleRed()">Red Mode</button>
+<button class="evilbtn" onclick="toggleEvil()">SUPER EVIL MODE</button>
+
+<div class="modal" id="modal">
+  <h2>How this was made</h2>
+  <p>This project simulates an ad blocker dashboard with system effects.</p>
+  <button class="close" onclick="closeSettings()">Close</button>
+</div>
+
+<div class="container">
+  <div class="main-title">Ad-Block Ultimate ⚡</div>
+
+  <div class="panel">
+
+    <div class="toggle">
+      <span>🕶️ VIP Mode</span>
+      <label class="switch">
+        <input type="checkbox" id="vipToggle" onchange="toggleVIP()">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="toggle">
+      <span>Block Ads</span>
+      <label class="switch">
+        <input type="checkbox" id="adToggle" onchange="updateStatus()">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="toggle">
+      <span>Block Trackers</span>
+      <label class="switch">
+        <input type="checkbox" id="trackerToggle" onchange="updateStatus()">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="status" id="status">No features enabled</div>
+
+    <div class="stats">
+      <div class="stat-box">Ads Blocked <div class="stat-number" id="adsBlocked">0</div></div>
+      <div class="stat-box">Trackers Blocked <div class="stat-number" id="trackersBlocked">0</div></div>
+      <div class="stat-box">CPU <div class="stat-number" id="cpu">0%</div></div>
+      <div class="stat-box">RAM <div class="stat-number" id="ram">0%</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">🚀 Created by Reid O'Brien</div>
+
+<script>
+const links=["https://www.youtube.com/watch?v=dQw4w9WgXcQ","https://www.youtube.com","https://www.wikipedia.org","https://www.google.com"];
+
+let adsBlocked=0;
+let trackersBlocked=0;
+let interval;
+let evilMode=false;
+
+let cpu=10, ram=20;
+
+function toggleVIP(){ document.body.classList.toggle("vip"); }
+function openSettings(){ document.getElementById("modal").style.display="block"; }
+function closeSettings(){ document.getElementById("modal").style.display="none"; }
+function toggleRed(){ document.body.classList.toggle("redmode"); }
+
+function toggleEvil(){
+  evilMode=!evilMode;
+  document.getElementById("noescape").style.display = evilMode ? "flex" : "none";
+  restartPopups();
+}
+
+function popupSpeed(){ return evilMode ? 60 : 300; }
+
+function restartPopups(){ stopPopups(); startPopups(); }
+
+function createPopup(){
+  const p=document.createElement("div");
+  p.className="popup";
+
+  const msgs=["🚨 ERROR","🔥 SYSTEM FAIL","💀 OVERLOAD","⚡ CRITICAL","📡 GLITCH","💥 BREAKING"];
+  p.textContent=msgs[Math.floor(Math.random()*msgs.length)];
+
+  p.onclick=()=>window.open(links[Math.floor(Math.random()*links.length)],"_blank");
+
+  p.style.left=Math.random()*window.innerWidth+"px";
+  p.style.top=Math.random()*window.innerHeight+"px";
+
+  document.body.appendChild(p);
+}
+
+function startPopups(){
+  stopPopups();
+  interval=setInterval(()=>{
+    if(!document.getElementById("adToggle").checked) createPopup();
+  }, popupSpeed());
+}
+
+function stopPopups(){
+  clearInterval(interval);
+  document.querySelectorAll(".popup").forEach(p=>p.remove());
+}
+
+function updateStatus(){
+  const ad=document.getElementById("adToggle").checked;
+
+  const enabled=[ad,document.getElementById("trackerToggle").checked,document.getElementById("vipToggle").checked].filter(Boolean).length;
+  document.getElementById("status").textContent=enabled?enabled+" feature(s) enabled":"No features enabled";
+
+  if(!ad) startPopups(); else stopPopups();
+}
+
+function updateStats(){
+  cpu+=Math.random()*10-5;
+  ram+=Math.random()*10-5;
+  cpu=Math.max(5,Math.min(100,cpu));
+  ram=Math.max(10,Math.min(100,ram));
+  document.getElementById("cpu").textContent=Math.floor(cpu)+"%";
+  document.getElementById("ram").textContent=Math.floor(ram)+"%";
+}
+
+setInterval(updateStats,500);
+
+const c=document.getElementById("bg"); const x=c.getContext("2d");
+c.width=innerWidth; c.height=innerHeight;
+let pts=[]; for(let i=0;i<60;i++) pts.push({x:Math.random()*c.width,y:Math.random()*c.height});
+
+function anim(){
+  const color=document.body.classList.contains("redmode")?"#ff3b3b":"#00ffcc";
+  x.clearRect(0,0,c.width,c.height);
+  pts.forEach(p=>{ x.fillStyle=color; x.fillRect(p.x,p.y,2,2); p.x+=Math.random()-0.5; p.y+=Math.random()-0.5; });
+  requestAnimationFrame(anim);
+}
+anim();
+</script>
+
+</body>
+</html>
