@@ -1,1 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Maze Chase Game</title>
+  <style>
+    body {
+      margin: 0;
+      background: #111;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      color: white;
+    }
 
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background: #000;
+    }
+
+    .ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      color: #00ffcc;
+    }
+
+    .gameover {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 40px;
+      color: red;
+      display: none;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="ui">
+  Move: Arrow Keys / WASD | SPACE = Restart
+</div>
+
+<div class="gameover" id="gameover"></div>
+
+<canvas id="game" width="600" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+const size = 30;
+
+let player, enemy, exit;
+let gameOver = false;
+let level = 1;
+
+let enemyDelay = 0;
+const enemySpeed = 8;
+
+let enemyDir = { x: 1, y: 0 };
+const visionRange = 6;
+
+/* 🗺️ LEVEL MAPS */
+const levels = {
+  1: [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1],
+    [1,0,1,0,1,0,1,1,0,1,0,1,1,0,1,0,1,1,0,1],
+    [1,0,1,0,0,0,1,0,0,0,0,1,0,0,1,0,0,1,0,1],
+    [1,0,1,1,1,0,1,0,1,1,1,1,0,1,1,1,0,1,0,1],
+    [1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,0,0,0,1],
+    [1,1,1,0,1,1,1,0,1,0,1,1,1,1,0,1,1,1,0,1],
+    [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1,0,1],
+    [1,0,1,1,1,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1],
+    [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+  ],
+
+  2: [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1],
+    [1,0,1,1,1,0,1,0,1,1,1,0,1,0,1,0,1,1,0,1],
+    [1,0,1,0,0,0,0,0,1,0,0,0,1,0,1,0,0,0,0,1],
+    [1,0,1,0,1,1,1,1,1,0,1,1,1,0,1,1,1,1,0,1],
+    [1,0,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,1],
+    [1,1,1,0,1,0,1,1,1,0,1,1,1,1,1,0,1,1,0,1],
+    [1,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,1],
+    [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+  ],
+
+  3: [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
+    [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,0,1],
+    [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+    [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,1,1,1,0,1],
+    [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,1],
+    [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0,1,0,1],
+    [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,1],
+    [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+  ]
+};
+
+/* 🚪 EXITS PER LEVEL */
+const exits = {
+  1: { x: 18, y: 1 },
+  2: { x: 18, y: 9 },
+  3: { x: 18, y: 1 }
+};
+
+/* 🔁 LOAD LEVEL */
+function loadLevel(lvl) {
+  level = lvl;
+  const map = levels[level];
+
+  player = { x: 1, y: 1 };
+  enemy = { x: 18, y: 9 };
+
+  exit = exits[level];
+
+  enemyDir = { x: 1, y: 0 };
+  gameOver = false;
+
+  document.getElementById("gameover").style.display = "none";
+  document.getElementById("gameover").innerText = "";
+}
+
+/* start */
+loadLevel(1);
+
+function drawMaze() {
+  const map = levels[level];
+
+  for (let y = 0; y < map.length; y++) {
+    for (let x = 0; x < map[y].length; x++) {
+      ctx.fillStyle = map[y][x] === 1 ? "#00ffcc" : "#111";
+      ctx.fillRect(x * size, y * size, size, size);
+    }
+  }
+
+  ctx.fillStyle = "lime";
+  ctx.fillRect(exit.x * size, exit.y * size, size, size);
+}
+
+function drawPlayer() {
+  ctx.fillStyle = "blue";
+  ctx.fillRect(player.x * size, player.y * size, size, size);
+}
+
+function drawEnemy() {
+  ctx.fillStyle = "red";
+  ctx.fillRect(enemy.x * size, enemy.y * size, size, size);
+}
+
+function canMove(x, y) {
+  const map = levels[level];
+  return map[y] && map[y][x] === 0;
+}
+
+/* controls */
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space") {
+    loadLevel(1);
+    return;
+  }
+
+  if (gameOver) return;
+
+  let nx = player.x;
+  let ny = player.y;
+
+  if (e.key === "ArrowUp" || e.key === "w") ny--;
+  if (e.key === "ArrowDown" || e.key === "s") ny++;
+  if (e.key === "ArrowLeft" || e.key === "a") nx--;
+  if (e.key === "ArrowRight" || e.key === "d") nx++;
+
+  if (canMove(nx, ny)) {
+    player.x = nx;
+    player.y = ny;
+  }
+});
+
+/* BFS pathfinding */
+function findPath(start, goal) {
+  const queue = [];
+  const visited = new Set();
+
+  queue.push({
+    x: start.x,
+    y: start.y,
+    path: [{ x: start.x, y: start.y }]
+  });
+
+  visited.add(`${start.x},${start.y}`);
+
+  const map = levels[level];
+
+  function can(x, y) {
+    return map[y] && map[y][x] === 0;
+  }
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+
+    if (current.x === goal.x && current.y === goal.y) {
+      return current.path;
+    }
+
+    const dirs = [
+      { x: 1, y: 0 },
+      { x: -1, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: -1 }
+    ];
+
+    for (let d of dirs) {
+      const nx = current.x + d.x;
+      const ny = current.y + d.y;
+      const key = `${nx},${ny}`;
+
+      if (!visited.has(key) && can(nx, ny)) {
+        visited.add(key);
+
+        queue.push({
+          x: nx,
+          y: ny,
+          path: [...current.path, { x: nx, y: ny }]
+        });
+      }
+    }
+  }
+
+  return null;
+}
+
+/* enemy vision */
+const visionRange = 6;
+let enemyDir = { x: 1, y: 0 };
+
+function enemyCanSeePlayer() {
+  const dx = player.x - enemy.x;
+  const dy = player.y - enemy.y;
+
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  if (dist > visionRange) return false;
+
+  const len = Math.sqrt(enemyDir.x * enemyDir.x + enemyDir.y * enemyDir.y);
+  const ndx = enemyDir.x / len;
+  const ndy = enemyDir.y / len;
+
+  const dot = (dx / dist) * ndx + (dy / dist) * ndy;
+
+  return dot > 0.3;
+}
+
+/* enemy movement */
+let enemyDelay = 0;
+const enemySpeed = 8;
+
+function moveEnemy() {
+  if (gameOver) return;
+
+  enemyDelay++;
+  if (enemyDelay < enemySpeed) return;
+  enemyDelay = 0;
+
+  const sees = enemyCanSeePlayer();
+
+  if (sees) {
+    const path = findPath(enemy, player);
+    if (path && path.length > 1) {
+      enemyDir.x = path[1].x - enemy.x;
+      enemyDir.y = path[1].y - enemy.y;
+
+      enemy.x = path[1].x;
+      enemy.y = path[1].y;
+    }
+  } else {
+    const moves = [
+      { x: 1, y: 0 },
+      { x: -1, y: 0 },
+      { x: 0, y: 1 },
+      { x: 0, y: -1 }
+    ];
+
+    const m = moves[Math.floor(Math.random() * moves.length)];
+    const nx = enemy.x + m.x;
+    const ny = enemy.y + m.y;
+
+    if (canMove(nx, ny)) {
+      enemy.x = nx;
+      enemy.y = ny;
+      enemyDir = m;
+    }
+  }
+}
+
+/* lose */
+function checkGameOver() {
+  if (player.x === enemy.x && player.y === enemy.y) {
+    gameOver = true;
+    document.getElementById("gameover").innerText = "💀 CAUGHT!";
+    document.getElementById("gameover").style.display = "block";
+  }
+}
+
+/* win progression */
+function checkWin() {
+  if (player.x === exit.x && player.y === exit.y) {
+    if (level === 1) {
+      loadLevel(2);
+    } else if (level === 2) {
+      loadLevel(3);
+    } else {
+      gameOver = true;
+      document.getElementById("gameover").innerText = "🏁 YOU BEAT ALL LEVELS!";
+      document.getElementById("gameover").style.display = "block";
+    }
+  }
+}
+
+/* loop */
+function loop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  drawMaze();
+  drawPlayer();
+  drawEnemy();
+
+  moveEnemy();
+  checkGameOver();
+  checkWin();
+
+  requestAnimationFrame(loop);
+}
+
+loop();
+</script>
+
+</body>
+</html>
