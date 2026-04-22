@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+                                                                                                                                                                     <!DOCTYPE html>
 <html>
 <head>
   <title>Maze Chase Game</title>
@@ -91,28 +91,7 @@ const levels = {
     [1,0,1,1,1,1,1,0,1,1,1,1,1,0,1,1,1,1,0,1],
     [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
-  ],
-
-  3: [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,1],
-    [1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1,0,1],
-    [1,0,1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
-    [1,0,1,1,1,0,1,0,1,0,1,1,1,0,1,1,1,1,0,1],
-    [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1,0,1],
-    [1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0,1,0,1],
-    [1,0,0,0,0,0,1,0,0,0,1,0,0,0,0,1,0,0,0,1],
-    [1,0,1,1,1,0,1,1,1,0,1,1,1,0,1,1,1,1,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
   ]
-};
-
-/* 🚪 EXITS PER LEVEL */
-const exits = {
-  1: { x: 18, y: 1 },
-  2: { x: 18, y: 9 },
-  3: { x: 18, y: 1 }
 };
 
 /* 🔁 LOAD LEVEL */
@@ -122,8 +101,7 @@ function loadLevel(lvl) {
 
   player = { x: 1, y: 1 };
   enemy = { x: 18, y: 9 };
-
-  exit = exits[level];
+  exit = { x: 18, y: 1 };
 
   enemyDir = { x: 1, y: 0 };
   gameOver = false;
@@ -132,9 +110,10 @@ function loadLevel(lvl) {
   document.getElementById("gameover").innerText = "";
 }
 
-/* start */
+/* start game */
 loadLevel(1);
 
+// 🧱 draw maze
 function drawMaze() {
   const map = levels[level];
 
@@ -149,11 +128,13 @@ function drawMaze() {
   ctx.fillRect(exit.x * size, exit.y * size, size, size);
 }
 
+// 👤 player
 function drawPlayer() {
   ctx.fillStyle = "blue";
   ctx.fillRect(player.x * size, player.y * size, size, size);
 }
 
+// 👹 enemy
 function drawEnemy() {
   ctx.fillStyle = "red";
   ctx.fillRect(enemy.x * size, enemy.y * size, size, size);
@@ -164,7 +145,7 @@ function canMove(x, y) {
   return map[y] && map[y][x] === 0;
 }
 
-/* controls */
+// 🎮 controls
 document.addEventListener("keydown", (e) => {
   if (e.code === "Space") {
     loadLevel(1);
@@ -187,7 +168,7 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-/* BFS pathfinding */
+// 🧠 pathfinding (same as before)
 function findPath(start, goal) {
   const queue = [];
   const visited = new Set();
@@ -240,10 +221,7 @@ function findPath(start, goal) {
   return null;
 }
 
-/* enemy vision */
-const visionRange = 6;
-let enemyDir = { x: 1, y: 0 };
-
+// 👀 vision
 function enemyCanSeePlayer() {
   const dx = player.x - enemy.x;
   const dy = player.y - enemy.y;
@@ -260,10 +238,7 @@ function enemyCanSeePlayer() {
   return dot > 0.3;
 }
 
-/* enemy movement */
-let enemyDelay = 0;
-const enemySpeed = 8;
-
+// 👹 enemy AI
 function moveEnemy() {
   if (gameOver) return;
 
@@ -291,6 +266,7 @@ function moveEnemy() {
     ];
 
     const m = moves[Math.floor(Math.random() * moves.length)];
+
     const nx = enemy.x + m.x;
     const ny = enemy.y + m.y;
 
@@ -302,7 +278,7 @@ function moveEnemy() {
   }
 }
 
-/* lose */
+// 💀 lose
 function checkGameOver() {
   if (player.x === enemy.x && player.y === enemy.y) {
     gameOver = true;
@@ -311,13 +287,11 @@ function checkGameOver() {
   }
 }
 
-/* win progression */
+// 🏁 win + level switch
 function checkWin() {
   if (player.x === exit.x && player.y === exit.y) {
     if (level === 1) {
       loadLevel(2);
-    } else if (level === 2) {
-      loadLevel(3);
     } else {
       gameOver = true;
       document.getElementById("gameover").innerText = "🏁 YOU BEAT ALL LEVELS!";
@@ -326,7 +300,7 @@ function checkWin() {
   }
 }
 
-/* loop */
+// 🔁 loop
 function loop() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
