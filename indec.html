@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>3D Animated Character</title>
+  <style>
+    body { margin: 0; overflow: hidden; }
+  </style>
+</head>
+<body>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+
+<script>
+let scene, camera, renderer;
+let keys = {};
+
+let velocityY = 0;
+let onGround = true;
+let isMoving = false;
+
+// animation timing
+let runTime = 0;
+
+init();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x87ceeb);
+
+  camera = new THREE.PerspectiveCamera(
+    75,
+    window.innerWidth / window.innerHeight,
+    0.1,
+    1000
+  );
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(10, 20, 10);
+  scene.add(light);
+
+  // ===== CHARACTER =====
+  const player = new THREE.Group();
+
+  const skin = new THREE.MeshStandardMaterial({ color: 0xff8844 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x333333 });
+
+  // Body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.8), skin);
+  body.position.y = 1.2;
+  player.add(body);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1), skin);
+  head.position.y = 2.5;
+  player.add(head);
+
+  // Arms
+  const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.8, 0.3), skin);
+  const rightArm = leftArm.clone();
+  leftArm.position.set(-0.9, 1.4, 0);
+  rightArm.position.set(0.9, 1.4, 0);
+  player.add(leftArm);
+  player.add(rightArm);
+
+  // Legs
+  const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.8, 0.4), dark);
+  const rightLeg = leftLeg.clone();
+  leftLeg.position.set(-0.3, 0.4, 0);
+  rightLeg.position.set(0.3, 0.4, 0);
+  player.add(leftLeg);
+  player.add(rightLeg);
+
+  player.userData = {
+    leftArm,
+    rightArm,
+    leftLeg,
+    rightLeg
+  };
+
+  scene.add(player);
+  window.player = player;
+
+  // Ground
+  const ground = new THREE.Mesh(
+    new THREE.BoxGeometry(50, 1, 50),
+    new THREE.MeshStandardMaterial({ color: 0x228B22 })
+  );
+  ground.position.y = -0.5;
+  scene.add(ground);
+
+  camera.position.set(0, 3, 7);
+
+  window.addEventListener("keydown", e => keys[e.code] = true);
+  window.addEventListener("keyup", e => keys[e.code] = false);
+
+  window.addEventListener("resize", onResize);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  const p = window.player;
+
+  // movement
+  isMoving = false;
+  const speed = 0.1;
+
+  if (keys["KeyA"]) { p.position.x -= speed; isMoving = true; }
+  if (keys["KeyD"]) { p.position.x += speed; isMoving = true; }
+  if (keys["KeyW"]) { p.position.z -= speed; isMoving = true; }
+  if (keys["KeyS"]) { p.position.z += speed; isMoving = true; }
+
+  // jump
+  if (keys["Space"] && onGround) {
+    velocityY = 0.25;
+    onGround = false;
+  }
+
+  // gravity
+  velocityY -= 0.012;
+  p.position.y += velocityY;
+
+  if (p.position.y < 0) {
+    p.position.y = 0;
+    velocityY = 0;
+    onGround = true;
+  }
+
+  // ===== RUN ANIMATION =====
+  if (isMoving && onGround) {
+    runTime += 0.2;
+
+    const swing = Math.sin(runTime) * 0.6;
+
+    p.userData.leftLeg.rotation.x = swing;
+    p.userData.rightLeg.rotation.x = -swing;
+
+    p.userData.leftArm.rotation.x = -swing;
+    p.userData.rightArm.rotation.x = swing;
+  } else {
+    // idle reset
+    p.userData.leftLeg.rotation.x *= 0.9;
+    p.userData.rightLeg.rotation.x *= 0.9;
+    p.userData.leftArm.rotation.x *= 0.9;
+    p.userData.rightArm.rotation.x *= 0.9;
+  }
+
+  // camera follow
+  camera.position.x = p.position.x;
+  camera.position.y = p.position.y + 3;
+  camera.position.z = p.position.z + 7;
+  camera.lookAt(p.position);
+
+  renderer.render(scene, camera);
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+</script>
+
+</body>
+</html>
