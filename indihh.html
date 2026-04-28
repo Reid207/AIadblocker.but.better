@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>3D FPS Pistol Game</title>
+<style>
+  body { margin: 0; overflow: hidden; background: #000; cursor: none; }
+  canvas { display: block; }
+  #ui {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-family: Arial;
+    z-index: 10;
+  }
+  #crosshair {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px;
+    height: 10px;
+    margin-left: -5px;
+    margin-top: -5px;
+    border: 2px solid white;
+    border-radius: 50%;
+    z-index: 10;
+  }
+</style>
+</head>
+<body>
+<div id="ui">LOCKED MODE (Q to unlock/lock) | WASD move | SPACE jump | Click shoot</div>
+<div id="crosshair"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+let scene, camera, renderer;
+let direction = new THREE.Vector3();
+let move = { forward: false, backward: false, left: false, right: false };
+let raycaster;
+let targets = [];
+
+let viewModel, gun, leftHand, rightHand;
+let clock = new THREE.Clock();
+
+// TRUE LOCK STATE (simulated, no pointer lock API)
+let isLocked = true;
+let lastX = 0;
+let lastY = 0;
+let firstMove = true;
+
+// jump
+let velocityY = 0;
+const gravity = -0.01;
+const jumpStrength = 0.22;
+const groundY = 2;
+
+init();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x111111);
+
+  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const light = new THREE.HemisphereLight(0xffffff, 0x444444);
+  scene.add(light);
+
+  const floor = new THREE.Mesh(
+    new THREE.PlaneGeometry(200, 200),
+    new THREE.MeshStandardMaterial({ color: 0x222222 })
+  );
+  floor.rotation.x = -Math.PI / 2;
+  scene.add(floor);
+
+  for (let i = 0; i < 20; i++) {
+    const sphere = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0xff4444 })
+    );
+    sphere.position.set((Math.random()-0.5)*100, 1, (Math.random()-0.5)*100);
+    scene.add(sphere);
+    targets.push(sphere);
+  }
+
+  camera.position.y = groundY;
+  raycaster = new THREE.Raycaster();
+
+  createViewModel();
+
+  // KEY INPUT
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "KeyQ") toggleLock();
+
+    if (e.code === "KeyW") move.forward = true;
+    if (e.code === "KeyS") move.backward = true;
+    if (e.code === "KeyA") move.left = true;
+    if (e.code === "KeyD") move.right = true;
+
+    if (e.code === "Space") {
+      if (Math.abs(camera.position.y - groundY) < 0.001) {
+        velocityY = jumpStrength;
+      }
+    }
+  });
+
+  document.addEventListener("keyup", (e) => {
+    if (e.code === "KeyW") move.forward = false;
+    if (e.code === "KeyS") move.backward = false;
+    if (e.code === "KeyA") move.left = false;
+    if (e.code === "KeyD") move.right = false;
+  });
+
+  // FULL 360 CAMERA LOOK (locked mode only)
+  document.addEventListener("mousemove", (e) => {
+    if (!isLocked) return;
+
+    const dx = e.movementX || (e.clientX - lastX);
+    const dy = e.movementY || (e.clientY - lastY);
+
+    lastX = e.clientX;
+    lastY = e.clientY;
+
+    camera.rotation.y -= dx * 0.002;
+    camera.rotation.x -= dy * 0.002;
+    camera.rotation.x = Math.max(-1.5, Math.min(1.5, camera.rotation.x));
+  });
+
+  document.addEventListener("mousedown", () => {
+    if (isLocked) shoot();
+  });
+
+  window.addEventListener("resize", onResize);
+}
+
+function toggleLock() {
+  isLocked = !isLocked;
+
+  document.body.style.cursor = isLocked ? "none" : "default";
+
+  document.getElementById("ui").innerText = isLocked
+    ? "LOCKED MODE ON | Q to unlock | WASD move | SPACE jump"
+    : "UNLOCKED MODE | Q to lock | WASD move | SPACE jump";
+
+  firstMove = true;
+}
+
+function createViewModel() {
+  viewModel = new THREE.Group();
+
+  const handMat = new THREE.MeshStandardMaterial({ color: 0xffcc99 });
+  const gunMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+
+  const handGeo = new THREE.BoxGeometry(0.2, 0.2, 0.6);
+
+  leftHand = new THREE.Mesh(handGeo, handMat);
+  rightHand = new THREE.Mesh(handGeo, handMat);
+
+  leftHand.position.set(-0.3, -0.3, -0.6);
+  rightHand.position.set(0.3, -0.3, -0.6);
+
+  gun = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.8), gunMat);
+  gun.position.set(0, -0.25, -0.9);
+
+  viewModel.add(leftHand);
+  viewModel.add(rightHand);
+  viewModel.add(gun);
+
+  camera.add(viewModel);
+  scene.add(camera);
+}
+
+function shoot() {
+  raycaster.setFromCamera(new THREE.Vector2(0,0), camera);
+  const hits = raycaster.intersectObjects(targets);
+
+  if (hits.length > 0) {
+    scene.remove(hits[0].object);
+    targets = targets.filter(t => t !== hits[0].object);
+  }
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+
+  direction.set(0,0,0);
+
+  if (move.forward) direction.z -= 1;
+  if (move.backward) direction.z += 1;
+  if (move.left) direction.x -= 1;
+  if (move.right) direction.x += 1;
+
+  if (direction.length() > 0) direction.normalize();
+
+  const speed = 0.2;
+
+  camera.position.x += Math.sin(camera.rotation.y) * direction.z * speed;
+  camera.position.z += Math.cos(camera.rotation.y) * direction.z * speed;
+
+  camera.position.x += Math.sin(camera.rotation.y - Math.PI/2) * direction.x * speed;
+  camera.position.z += Math.cos(camera.rotation.y - Math.PI/2) * direction.x * speed;
+
+  velocityY += gravity;
+  camera.position.y += velocityY;
+
+  if (camera.position.y < groundY) {
+    camera.position.y = groundY;
+    velocityY = 0;
+  }
+
+  const t = clock.getElapsedTime();
+  if (viewModel) viewModel.position.y = Math.sin(t * 6) * 0.02;
+
+  renderer.render(scene, camera);
+}
+
+function onResize() {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// tests
+console.assert(typeof toggleLock === "function", "toggleLock exists");
+console.assert(typeof shoot === "function", "shoot exists");
+console.assert(typeof createViewModel === "function", "viewmodel exists");
+console.log("FPS lock mode enabled");
+</script>
+</body>
+</html>
